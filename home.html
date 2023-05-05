@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Library Management Page</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+  </head>
+  <body>
+    <div class="container">
+      <h1>Library Management Page</h1>
+      
+      <!-- Search bar -->
+      <form id="search-form">
+        <label for="search-input">Search for a book:</label>
+        <input type="text" id="search-input" name="search-input">
+        <button type="submit" id="search-button">Search</button>
+      </form>
+      
+      <!-- Book table -->
+      <table id="book-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Author</th>
+            <th>Subject</th>
+            <th>Publish Date</th>
+          </tr>
+        </thead>
+        <tbody id="book-table-body">
+        </tbody>
+      </table>
+      
+      <!-- Pagination -->
+      <div id="pagination">
+        <button id="prev-page-button" disabled>&lt;</button>
+        <span>Page <span id="page-number">1</span> of <span id="total-pages">1</span></span>
+        <button id="next-page-button" disabled>&gt;</button>
+      </div>
+    </div>
+    <script>
+        // Define global variables for book data and pagination
+        let books = [];
+        let currentPage = 1;
+        let totalPages = 1;
+        
+        // Define a function to fetch book data from the Google Books API with pagination
+        function fetchBooks(query, startIndex) {
+          // Set the API endpoint URL with the search query and pagination parameters
+          const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=${query}&startIndex=${startIndex}&maxResults=10`;
+          
+          // Use the fetch API to send a GET request to the API endpoint
+          fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+              // Extract the book data and pagination information from the API response
+              books = data.items.map(item => ({
+                title: item.volumeInfo.title,
+                author: item.volumeInfo.authors ? item.volumeInfo.authors.join(", ") : "",
+                subject: item.volumeInfo.categories ? item.volumeInfo.categories.join(", ") : "",
+                publishDate: item.volumeInfo.publishedDate
+              }));
+              const totalItems = data.totalItems;
+              totalPages = Math.ceil(totalItems / 10);
+              
+              // Update the book table and pagination elements with the fetched data
+              updateTable();
+              updatePagination();
+            })
+            .catch(error => console.error(error));
+        }
+        
+        // Define a function to update the book table with the current page of book data
+        function updateTable() {
+          const tableBody = document.getElementById("book-table-body");
+          
+          // Clear the table body
+          tableBody.innerHTML = "";
+          
+          // Add the book data for the current page to the table row by row
+          const startIndex = (currentPage - 1) * 10;
+          const endIndex = startIndex + 10;
+          const pageBooks = books.slice(startIndex, endIndex);
+          pageBooks.forEach(book => {
+            const row = tableBody.insertRow();
+            row.insertCell().textContent = book.title;
+            row.insertCell().textContent = book.author;
+            row.insertCell().textContent = book.subject;
+            row.insertCell().textContent = book.publishDate;
+          });
+        }
+        
+        // Define a function to update the pagination buttons and page number display
+        function updatePagination() {
+          const prevButton = document.getElementById("prev-page-button");
+          const nextButton = document.getElementById("next-page-button");
+          const pageNumberDisplay = document.getElementById("page-number");
+          const totalPagesDisplay = document.getElementById("total-pages");
+          
+          // Disable the previous button if on the first page, and enable it otherwise
+          if (currentPage === 1) {
+            prevButton.disabled = true;
+          } else {
+            prevButton.disabled = false;
+          }
+          
+          // Disable the next button if on the last page, and enable it otherwise
+          if (currentPage === totalPages) {
+            nextButton.disabled = true;
+          } else {
+            nextButton.disabled = false;
+          }
+          
+          // Update the page number display and total pages display
+          pageNumberDisplay.textContent = currentPage;
+          totalPagesDisplay.textContent = totalPages;
+        }
+        
+        // Define a function to handle search form submission
+        function handleSearch(event) {
+          event.preventDefault();
+          
+          // Get the search query from the input field
+          const query = document.getElementById("search-input").value;
+          
+          // Reset the current page to 1
+          currentPage = 1;
+          
+          // Fetch the book data from the API with the search query and starting index 0
+          fetchBooks(query, 0);
+        }
+       // Define a function to handle previous page button click
+          function handlePrevPage() {
+            if (currentPage > 1) {
+              currentPage--;
+              const startIndex = (currentPage - 1) * 10;
+              fetchBooks(document.getElementById("search-input").value, startIndex);
+            }
+          }
+          
+          // Define a function to handle next page button click
+          function handleNextPage() {
+            if (currentPage < totalPages) {
+              currentPage++;
+              const startIndex = (currentPage - 1) * 10;
+              fetchBooks(document.getElementById("search-input").value, startIndex);
+            }
+          }
+          
+          // Define a function to handle filter form submission
+          function handleFilter(event) {
+            event.preventDefault();
+            
+            // Get the filter values from the input fields
+            const titleFilter = document.getElementById("title-filter-input").value.toLowerCase();
+            const authorFilter = document.getElementById("author-filter-input").value.toLowerCase();
+            const subjectFilter = document.getElementById("subject-filter-input").value.toLowerCase();
+            const publishDateFilter = document.getElementById("publish-date-filter-input").value;
+            
+            // Filter the book data based on the input values
+            let filteredBooks = books.filter(book => {
+              if (titleFilter && !book.title.toLowerCase().includes(titleFilter)) {
+                return false;
+              }
+              if (authorFilter && !book.author.toLowerCase().includes(authorFilter)) {
+                return false;
+              }
+              if (subjectFilter && !book.subject.toLowerCase().includes(subjectFilter)) {
+                return false;
+              }
+              if (publishDateFilter && book.publishDate !== publishDateFilter) {
+                return false;
+              }
+              return true;
+            });
+            
+            // Update the book table with the filtered data
+            books = filteredBooks;
+            currentPage = 1;
+            totalPages = Math.ceil(filteredBooks.length / 10);
+            updateTable();
+            updatePagination();
+          }
+          
+          // Attach event listeners to the search and filter forms and pagination buttons
+          document.getElementById("search-form").addEventListener("submit", handleSearch);
+          document.getElementById("filter-form").addEventListener("submit", handleFilter);
+          document.getElementById("prev-page-button").addEventListener("click", handlePrevPage);
+          document.getElementById("next-page-button").addEventListener("click", handleNextPage);
+    </script>
+    </body>
+</html>
